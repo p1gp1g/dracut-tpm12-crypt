@@ -1,0 +1,53 @@
+#!/bin/bash
+#
+# Original source: https://github.com/gastamper/dracut-tpm
+# Author: Greg Stamper (gastamper@gmail.com)
+#
+# Original source: http://github.com/latchset/clevis
+# Original header:
+# Copyright (c) 2016 Red Hat, Inc.
+# Author: Harald Hoyer <harald@redhat.com>
+# Author: Nathaniel McCallum <npmccallum@redhat.com>
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+
+# Create the RAMFS to hold the key in transit
+mkdir -p /mnt/ramfs
+mount -t tmpfs -o size=1m tmpfs /mnt/ramfs
+if [[ $? -ne 0 ]]; then
+    echo "Mounting RAMFS failed."
+    exit 2
+fi
+
+# At this point, begin setup for tcsd
+mkdir -p /var/lib/tpm
+grep "^tss:" /etc/passwd 2>/dev/null || echo 'tss:x:100:100:TSS:/:/sbin/nologin' >> /etc/passwd
+# Start trousers
+tcsd
+# Read data from specified index into ramfs
+OUT="`tpm_nvread -i 1 -f /mnt/ramfs/key -p 2>&1`"
+# tcsd may sometimes crash on the first read; if so, tpm_nvread returns 255
+# restart tcsd and try again, after which the command should succeed.
+if [[ $? -ne 0 ]] && echo "$OUT" | grep code=0011 >/dev/null; then
+    tcsd
+    tpm_nvread -i 1 -f /mnt/ramfs/key -p
+fi
+
+$(command -v cryptsetup) --key-file=/mnt/ramfs/key $@
+RET=$?
+# Unmount the RAMFS
+umount /mnt/ramfs
+
+exit $RET
