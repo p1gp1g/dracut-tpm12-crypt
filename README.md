@@ -97,7 +97,7 @@ Then, add a new keyfile to LUKS:
 # # Define a new NVRAM area at the specified index, of the specified size
 # # See 'man tpm_nvdefine' for permissions explanation
 # tcsd
-# tpm_nvdefine -i 1 -s 256 -p "OWNERWRITE|READ_STCLEAR" -o <owner_password> [-r <PCR1> -r <PCR2> ... n]
+# tpm_nvdefine -i 1 -s 256 -p "OWNERWRITE|OWNERREAD" -o <owner_password> [-r <PCR1> -r <PCR2> ... n]
 # # Write the data to index 1, size 256
 # tpm_nvwrite -i 1 -s 256 -f /mnt/ramfs/key -p
 # cryptsetup luksAddKey /dev/sda3 /mnt/ramfs/key
